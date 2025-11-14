@@ -159,6 +159,79 @@ Marks a follow-up as completed.
 - **Features**: Age, Sex, Weight, Blood Pressure, Cholesterol, ECG Result, Pulse Rate, Platelets, Environmental factors
 - **File**: `readmission_heart_disease_RandomForest.pkl`
 
+## Deployment & Operations
+
+### Current Production Setup
+- **Platform**: AWS Elastic Beanstalk (Docker, 64-bit Amazon Linux 2)
+- **Region**: `us-east-1`
+- **Environment**: `patient-readmission-env` (single `t3.micro`)
+- **Entry point**: Dockerfile → Gunicorn (`2` workers) serving the Flask app on port `8000`
+- **Public URL**: `http://patient-readmission-env.eba-ib4bv3rp.us-east-1.elasticbeanstalk.com/`
+
+The container image is built directly from this repo during each `eb deploy`, so the source of truth lives in GitHub—no ECR image needs to be managed manually.
+
+### Prerequisites
+1. **Tools**
+   - [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
+   - [Elastic Beanstalk CLI](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/eb-cli3-install.html)
+   - Docker (for local builds/tests)
+   - Git & Python 3.9+
+2. **AWS Credentials**
+   - Run `aws configure` and supply an IAM user with permissions for Elastic Beanstalk, EC2, S3, and CloudFormation.
+   - Credentials/CSVs must **never** be committed (see repo-level `.gitignore`).
+
+### Cloning & Local Development
+```bash
+git clone https://github.com/IndrarajBiswas/Multi-Disease-Patient-Readmission-Prediction-Using-ML-and-Cloud.git
+cd Multi-Disease-Patient-Readmission-Prediction-Using-ML-and-Cloud
+cd "Multi Disease Patient Readmission using ML/backend"
+pip install -r requirements.txt
+python app.py   # runs on http://localhost:5000
+```
+
+### Deploying Updates to the Existing Environment
+```bash
+cd "Multi Disease Patient Readmission using ML/backend"
+eb status                     # confirm you are pointed at patient-readmission-env
+git checkout -b feature/foo   # develop as usual
+git commit -am "Your change"
+git push origin feature/foo   # optional PR
+eb deploy                     # builds Docker image, uploads, and updates EB
+```
+
+Useful operational commands:
+- `eb logs` – fetch recent logs from the EC2 instance
+- `eb health` – view health metrics
+- `eb open` – open the live URL
+
+### Recreating the Environment From Scratch
+If another student needs to spin up a brand-new stack (e.g., in their own AWS account):
+```bash
+cd "Multi Disease Patient Readmission using ML/backend"
+eb init -p docker patient-readmission-app --region us-east-1
+eb create patient-readmission-env \
+  --instance_type t3.micro \
+  --envvars FLASK_ENV=production \
+  --single \
+  --vpc.id <your-vpc-id> \
+  --vpc.ec2subnets <public-subnet-ids-comma-separated> \
+  --vpc.publicip
+```
+This command provisions:
+- an S3 bucket for EB application bundles,
+- a security group with HTTP/80 open to the world,
+- a single EC2 instance running the Dockerized application under an Elastic IP.
+
+Subsequent deployments are simply `eb deploy` as described above.
+
+### Collaboration Workflow
+1. Fork or clone the repo.
+2. Create a feature branch (`git checkout -b feature/<name>`).
+3. Make code/model changes, commit, and push.
+4. Open a pull request for review.
+5. After merge, run `eb deploy` to refresh the production environment.
+
+Keeping this cycle documented makes it easy for future contributors to add features and redeploy without redoing the underlying AWS plumbing.
 ### Risk Scoring
 Final risk score combines:
 - ML model probability (40% weight)
