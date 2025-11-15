@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+from flask_login import login_required, current_user
 import joblib
 import cloudpickle
 import warnings
@@ -128,7 +129,22 @@ def save_followup_record(record):
 # =========================
 
 app = Flask(__name__, static_folder="frontend", static_url_path="/")
-CORS(app)
+
+# Security and Database Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///hospital_analytics.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Configure CORS to allow credentials (needed for session cookies)
+CORS(app, supports_credentials=True, origins=['http://localhost:3000', 'http://localhost:5000'])
+
+# Initialize authentication and database
+from models import init_db
+from auth import init_auth, auth_bp
+
+init_db(app)
+init_auth(app)
+app.register_blueprint(auth_bp)
 
 # =========================
 # FEATURES (DO NOT CHANGE)
@@ -472,6 +488,7 @@ def index():
 
 
 @app.route("/api/predict", methods=["POST"])
+@login_required
 def api_predict():
     try:
         data = request.get_json()
@@ -523,6 +540,7 @@ def api_predict():
 
 
 @app.route("/api/simulate_staffing", methods=["POST"])
+@login_required
 def api_simulate_staffing():
     try:
         data = request.get_json()
@@ -551,6 +569,7 @@ def api_simulate_staffing():
 
 
 @app.route("/api/report", methods=["POST"])
+@login_required
 def api_report():
     try:
         data = request.get_json()
@@ -728,6 +747,7 @@ def api_report():
 
 
 @app.route("/api/followups", methods=["GET"])
+@login_required
 def api_get_followups():
     try:
         df = pd.read_csv(FOLLOWUP_PATH)
@@ -742,6 +762,7 @@ def api_get_followups():
 
 
 @app.route("/api/followup/complete", methods=["POST"])
+@login_required
 def api_complete_followup():
     try:
         data = request.get_json()

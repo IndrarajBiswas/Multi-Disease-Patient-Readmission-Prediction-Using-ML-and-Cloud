@@ -49,6 +49,7 @@ function initializeApp() {
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -108,6 +109,7 @@ function initializeApp() {
       const res = await fetch("/api/simulate_staffing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(lastRequestPayload),
       });
 
@@ -164,6 +166,7 @@ function initializeApp() {
       const res = await fetch("/api/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(lastRequestPayload),
       });
 
